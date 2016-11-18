@@ -1,0 +1,43 @@
+# Compiled Object
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Head
+*.gch
+*.pch
+
+# Compiled Dynamic
+*.so
+*.dylib
+*.dll
+
+# Fortran module f
+*.mod
+*.smod
+
+# Compiled Static
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# CMake
+build/*
+
+# Vim trash
+[._]*.s[a-w][a-z]
+[._]s[a-w][a-z]
+*.un~
+Session.vim
+.netrwhist
+*~
+
+# Mis
+Compiled
