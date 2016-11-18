@@ -7,6 +7,7 @@
 #include <limits>
 #include <glm/glm.hpp>
 #include <mmdadapter.h>
+#include "Skeleton.h"
 
 struct BoundingBox {
 	BoundingBox()
@@ -15,18 +16,17 @@ struct BoundingBox {
 	glm::vec3 min;
 	glm::vec3 max;
 };
-
+/*
 struct Joint {
 	// FIXME: Implement your Joint data structure.
-	// Note: PMD represents weights on joints, but you need weights on
-	//       bones to calculate the actual animation.
+	// Note: PMDint pid, represents weights on joints, but you need weights on
+	//       bones to calcint pid,ulate the actual animation.
 };
-
 
 struct Skeleton {
 	// FIXME: create skeleton and bone data structures
 };
-
+*/
 struct Mesh {
 	Mesh();
 	~Mesh();
@@ -38,12 +38,12 @@ struct Mesh {
 	std::vector<glm::vec2> uv_coordinates;
 	std::vector<Material> materials;
 	BoundingBox bounds;
-	Skeleton skeleton;
+	Skeleton* skeleton;
 
 	void loadpmd(const std::string& fn);
 	void updateAnimation();
-	int getNumberOfBones() const 
-	{ 
+	int getNumberOfBones() const
+	{
 		return 0;
 		// FIXME: return number of bones in skeleton
 	}

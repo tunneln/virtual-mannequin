@@ -6,39 +6,32 @@
 
 /*
  * For students:
- * 
+ *
  * Although RenderPass simplifies the implementation of the reference code.
  * THE USE OF RENDERPASS CLASS IS TOTALLY OPTIONAL.
  * You can implement your system without even take a look of this.
  */
 
-RenderInputMeta::RenderInputMeta()
-{
-}
+RenderInputMeta::RenderInputMeta() {}
 
 RenderInputMeta::RenderInputMeta(int _position,
-	            const std::string& _name,
-	            const void *_data,
-	            size_t _nelements,
-	            size_t _element_length,
-	            int _element_type)
+				const std::string& _name,
+				const void *_data,
+				size_t _nelements,
+				size_t _element_length,
+				int _element_type)
 	:position(_position), name(_name), data(_data),
 	nelements(_nelements), element_length(_element_length),
-	element_type(_element_type)
-{
-}
+	element_type(_element_type) {}
 
-RenderDataInput::RenderDataInput()
-{
-}
+RenderDataInput::RenderDataInput() {}
 
 RenderPass::RenderPass(int vao, // -1: create new VAO, otherwise use given VAO
-	   const RenderDataInput& input,
-	   const std::vector<const char*> shaders, // Order: VS, GS, FS 
-	   const std::vector<ShaderUniform> uniforms,
-	   const std::vector<const char*> output // Order: 0, 1, 2...
-	  )
-	: vao_(vao), input_(input), uniforms_(uniforms)
+		const RenderDataInput& input,
+		const std::vector<const char*> shaders, // Order: VS, GS, FS
+		const std::vector<ShaderUniform> uniforms,
+		const std::vector<const char*> output // Order: 0, 1, 2...
+		) : vao_(vao), input_(input), uniforms_(uniforms)
 {
 	if (vao_ < 0) {
 		CHECK_GL_ERROR(glGenVertexArrays(1, (GLuint*)&vao_));
@@ -167,7 +160,7 @@ void RenderPass::initMaterialUniform()
 /*
  * Create textures to gltextures_
  * and assign material specified textures to matexids_
- * 
+ *
  * Different materials may share textures
  */
 void RenderPass::createMaterialTexture()
@@ -277,7 +270,7 @@ bool RenderPass::renderWithMaterial(int mid)
 	CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, mat.nfaces * 3,
 				GL_UNSIGNED_INT,
 				(const void*)(mat.offset * 3 * 4)) // Offset is in bytes
-	              );
+				  );
 	return true;
 }
 
@@ -312,11 +305,11 @@ unsigned RenderPass::compileShader(const char* source_ptr, int type)
 }
 
 void RenderDataInput::assign(int position,
-                             const std::string& name,
-                             const void *data,
-                             size_t nelements,
-                             size_t element_length,
-                             int element_type)
+							const std::string& name,
+							const void *data,
+							size_t nelements,
+							size_t element_length,
+							int element_type)
 {
 	meta_.emplace_back(position, name, data, nelements, element_length, element_type);
 }

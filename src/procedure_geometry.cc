@@ -12,8 +12,48 @@ void create_floor(std::vector<glm::vec4>& floor_vertices, std::vector<glm::uvec3
 	floor_faces.push_back(glm::uvec3(2, 3, 0));
 }
 
-// FIXME: create cylinders and lines for the bones
-// Hints: Generate a lattice in [-0.5, 0, 0] x [0.5, 1, 0] We wrap this
-// around in the vertex shader to produce a very smooth cylinder.  We only
-// need to send a small number of points.  Controlling the grid size gives a
-// nice wireframe.
+void create_bone_mesh(Skeleton* skeleton) {}
+
+void create_lattice_lines(std::vector<glm::vec4>& vertices, std::vector<glm::uvec2>& lines,
+		size_t branch)
+{
+	size_t n = vertices.size();
+	float step = 1.0f / (float)branch;
+
+	for (size_t i = 0; i < branch; i++) {
+		for (size_t j = 0; j < branch; j++) {
+			vertices.push_back(glm::vec4(j * step - 0.5f, i * step, 0.0f, 1));
+
+			size_t adj = n + j + i * branch;
+			if (i < branch - 1) lines.push_back(glm::uvec2(adj, adj + branch));
+			if (j < branch - 1) lines.push_back(glm::uvec2(adj, adj + 1));
+		}
+	}
+}
+
+void create_lattice_cylinders(std::vector<glm::vec4>& vertices, std::vector<glm::vec4>& norm,
+		std::vector<glm::uvec3>& faces, size_t branch)
+{
+	size_t n = vertices.size();
+	float step = 1.0f / (float)branch;
+
+	for (size_t i = 0; i < branch - 1; i++) {
+		for (size_t j = 0; j < branch - 1; j++) {
+			size_t a = n + j + i * branch;
+			size_t b = n + j + (i + 1) * branch;
+			size_t c = n + (j + 1) + i * branch;
+			size_t d = n + (j + 1) + (i + 1) * branch;
+
+			faces.push_back(glm::uvec3(a, c, b));
+			faces.push_back(glm::uvec3(c, d, b));
+		}
+	}
+
+	for (size_t i = 0; i < branch; i++) {
+		for (size_t j = 0; j < branch; j++) {
+			vertices.push_back(glm::vec4(j * step - 0.5f, i * step, 0.0f, 1));
+			norm.push_back(glm::vec4(-1.0f, 0.0f, 0.0f, 0.0f));
+		}
+	}
+
+}

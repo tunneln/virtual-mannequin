@@ -10,9 +10,11 @@
  * For debugging purpose.
  */
 template <typename T>
-std::ostream& operator<<(std::ostream& os, const std::vector<T>& v) {
+std::ostream& operator<<(std::ostream& os, const std::vector<T>& v)
+{
 	size_t count = std::min(v.size(), static_cast<size_t>(10));
-	for (size_t i = 0; i < count; ++i) os << i << " " << v[i] << "\n";
+	for (size_t i = 0; i < count; ++i)
+		os << i << " " << v[i] << "\n";
 	os << "size = " << v.size() << "\n";
 	return os;
 }
@@ -23,18 +25,11 @@ std::ostream& operator<<(std::ostream& os, const BoundingBox& bounds)
 	return os;
 }
 
-
-
 // FIXME: Implement bone animation.
 
+Mesh::Mesh() {}
 
-Mesh::Mesh()
-{
-}
-
-Mesh::~Mesh()
-{
-}
+Mesh::~Mesh() { delete skeleton; }
 
 void Mesh::loadpmd(const std::string& fn)
 {
@@ -44,15 +39,25 @@ void Mesh::loadpmd(const std::string& fn)
 	computeBounds();
 	mr.getMaterial(materials);
 
-	// FIXME: load skeleton and blend weights from PMD file
-	//        also initialize the skeleton as needed
+	std::vector<glm::vec3> offsets;
+	glm::vec3 offset;
+	std::vector<int> pids;
+	int pid;
+
+	int i = 0;
+	while (mr.getJoint(i++, offset, pid)) {
+		offsets.push_back(offset);
+		pids.push_back(pid);
+	}
+
+	skeleton = new Skeleton(offsets, pids);
 }
 
 void Mesh::updateAnimation()
 {
 	animated_vertices = vertices;
 	// FIXME: blend the vertices to animated_vertices, rather than copy
-	//        the data directly.
+	//		  the data directly.
 }
 
 
