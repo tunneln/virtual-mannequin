@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <glm/glm.hpp>
-#include "Skeleton.h"
+#include "skeletal_sys.h"
 
 class LineMesh;
 

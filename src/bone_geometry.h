@@ -7,7 +7,7 @@
 #include <limits>
 #include <glm/glm.hpp>
 #include <mmdadapter.h>
-#include "Skeleton.h"
+#include "skeletal_sys.h"
 
 struct BoundingBox {
 	BoundingBox()

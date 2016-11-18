@@ -83,12 +83,15 @@ int main(int argc, char* argv[])
 	std::vector<glm::uvec3> floor_faces;
 	create_floor(floor_vertices, floor_faces);
 
-	// FIXME: add code to create bone and cylinder geometry
+	std::vector<glm::vec4> skel_ver;
+	std::vector<glm::uvec2> skel_lines;
 
 	Mesh mesh;
 	mesh.loadpmd(argv[1]);
 	std::cout << "Loaded object  with  " << mesh.vertices.size()
 		<< " vertices and " << mesh.faces.size() << " faces.\n";
+
+	mesh.skeleton->calc_joints(skel_ver, skel_lines);
 
 	glm::vec4 mesh_center = glm::vec4(0.0f);
 	for (size_t i = 0; i < mesh.vertices.size(); ++i) {
@@ -105,7 +108,7 @@ int main(int argc, char* argv[])
 	MatrixPointers mats; // Define MatrixPointers here for lambda to capture
 	/*
 	 * In the following we are going to define several lambda functions to bind Uniforms.
-	 * 
+	 *
 	 * Introduction about lambda functions:
 	 *      http://en.cppreference.com/w/cpp/language/lambda
 	 *      http://www.stroustrup.com/C++11FAQ.html#lambda
@@ -113,7 +116,7 @@ int main(int argc, char* argv[])
 	auto matrix_binder = [](int loc, const void* data) {
 		glUniformMatrix4fv(loc, 1, GL_FALSE, (const GLfloat*)data);
 	};
-	auto bone_matrix_binder = [&mesh](int loc, const void* data) {
+	auto skeletal_matrix_binder = [&mesh](int loc, const void* data) {
 		auto nelem = mesh.getNumberOfBones();
 		glUniformMatrix4fv(loc, nelem, GL_FALSE, (const GLfloat*)data);
 	};
@@ -136,6 +139,10 @@ int main(int argc, char* argv[])
 	auto floor_model_data = [&floor_model_matrix]() -> const void* {
 		return &floor_model_matrix[0][0];
 	}; // This return model matrix for the floor.
+	glm::mat4 skeletal_model_matrix = glm::mat4(1.0f);
+	auto skeletal_model_data = [&skeletal_model_matrix]() -> const void* {
+		return &skeletal_model_matrix[0][0];
+	};
 	auto std_view_data = [&mats]() -> const void* {
 		return mats.view;
 	};
@@ -160,6 +167,7 @@ int main(int argc, char* argv[])
 	//        Otherwise, do whatever you like here
 	ShaderUniform std_model = { "model", matrix_binder, std_model_data };
 	ShaderUniform floor_model = { "model", matrix_binder, floor_model_data };
+	ShaderUniform skeletal_model = {"model", matrix_binder, skeletal_model_data};
 	ShaderUniform std_view = { "view", matrix_binder, std_view_data };
 	ShaderUniform std_camera = { "camera_position", vector3_binder, std_camera_data };
 	ShaderUniform std_proj = { "projection", matrix_binder, std_proj_data };
@@ -187,7 +195,17 @@ int main(int argc, char* argv[])
 			  std_camera, object_alpha },
 			{ "fragment_color" }
 			);
-
+/*
+    RenderDataInput skeletal_pass_input;
+    skeletal_pass_input.assign(0, "vertex_position", skel_ver.data(), skel_ver.size(), 4, GL_FLOAT);
+    skeletal_pass_input.assign_index(skel_lines.data(), skel_lines.size(), 2);
+    RenderPass skeletal_pass(-1,
+                             skeletal_pass_input,
+                             { skeletal_vertex_shader, nullptr, skeletal_fragment_shader},
+                             {skeletal_model, std_view, std_proj},
+                             {"fragment_color"}
+	);
+*/
 	// FIXME: Create the RenderPass objects for bones here.
 	//        Otherwise do whatever you like.
 
@@ -256,7 +274,7 @@ int main(int argc, char* argv[])
 			int mid = 0;
 			while (object_pass.renderWithMaterial(mid))
 				mid++;
-#if 0	
+#if 0
 			// For debugging also
 			if (mid == 0) // Fallback
 				CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, mesh.faces.size() * 3, GL_UNSIGNED_INT, 0));
