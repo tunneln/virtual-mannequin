@@ -5,6 +5,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <GLFW/glfw3.h>
 
+class Bone;
 class Mesh;
 
 /*
@@ -35,7 +36,7 @@ public:
 	bool isPoseDirty() const { return pose_changed_; }
 	void clearPose() { pose_changed_ = false; }
 	const float* getLightPositionPtr() const { return &light_position_[0]; }
-	
+
 	int getCurrentBone() const { return current_bone_; }
 	bool setCurrentBone(int i);
 

@@ -32,9 +32,7 @@ GUI::GUI(GLFWwindow* window)
 	projection_matrix_ = glm::perspective((float)(kFov * (M_PI / 180.0f)), aspect_, kNear, kFar);
 }
 
-GUI::~GUI()
-{
-}
+GUI::~GUI() {}
 
 void GUI::assignMesh(Mesh* mesh)
 {
@@ -49,7 +47,10 @@ void GUI::keyCallback(int key, int scancode, int action, int mods)
 		return ;
 	}
 	if (key == GLFW_KEY_J && action == GLFW_RELEASE) {
-		//FIXME save out a screenshot using SaveJPEG
+		unsigned char* buffer = new unsigned char[window_height_ * window_width_ * 3];
+		glReadPixels(0, 0, window_width_, window_height_, GL_RGB, GL_UNSIGNED_BYTE, buffer);
+		SaveJPEG("saved_jpeg.jpg", window_width_, window_height_, buffer);
+		delete[] buffer;
 	}
 
 	if (captureWASDUPDOWN(key, action))

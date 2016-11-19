@@ -38,7 +38,17 @@ const char* floor_fragment_shader =
 #include "shaders/floor.frag"
 ;
 
-// FIXME: Add more shaders here.
+const char* skeletal_vertex_shader =
+#include "shaders/skeletal.vert"
+;
+
+const char* skeletal_geometry_shader =
+#include "shaders/skeletal.geom"
+;
+
+const char* skeletal_fragment_shader =
+#include "shaders/skeletal.frag"
+;
 
 void ErrorCallback(int error, const char* description) {
 	std::cerr << "GLFW Error: " << description << "\n";
@@ -62,7 +72,7 @@ GLFWwindow* init_glefw()
 	glGetError();  // clear GLEW's error for it
 	glfwSwapInterval(1);
 	const GLubyte* renderer = glGetString(GL_RENDERER);  // get renderer string
-	const GLubyte* version = glGetString(GL_VERSION);    // version as a string
+	const GLubyte* version = glGetString(GL_VERSION);	// version as a string
 	std::cout << "Renderer: " << renderer << "\n";
 	std::cout << "OpenGL version supported:" << version << "\n";
 
@@ -83,15 +93,15 @@ int main(int argc, char* argv[])
 	std::vector<glm::uvec3> floor_faces;
 	create_floor(floor_vertices, floor_faces);
 
-	std::vector<glm::vec4> skel_ver;
-	std::vector<glm::uvec2> skel_lines;
+	std::vector<glm::vec4> skeleton_v;
+	std::vector<glm::uvec2> skeleton_l;
 
 	Mesh mesh;
 	mesh.loadpmd(argv[1]);
 	std::cout << "Loaded object  with  " << mesh.vertices.size()
 		<< " vertices and " << mesh.faces.size() << " faces.\n";
 
-	mesh.skeleton->calc_joints(skel_ver, skel_lines);
+	mesh.skeleton->calc_joints(skeleton_v, skeleton_l);
 
 	glm::vec4 mesh_center = glm::vec4(0.0f);
 	for (size_t i = 0; i < mesh.vertices.size(); ++i) {
@@ -110,8 +120,8 @@ int main(int argc, char* argv[])
 	 * In the following we are going to define several lambda functions to bind Uniforms.
 	 *
 	 * Introduction about lambda functions:
-	 *      http://en.cppreference.com/w/cpp/language/lambda
-	 *      http://www.stroustrup.com/C++11FAQ.html#lambda
+	 *	  http://en.cppreference.com/w/cpp/language/lambda
+	 *	  http://www.stroustrup.com/C++11FAQ.html#lambda
 	 */
 	auto matrix_binder = [](int loc, const void* data) {
 		glUniformMatrix4fv(loc, 1, GL_FALSE, (const GLfloat*)data);
@@ -164,7 +174,7 @@ int main(int argc, char* argv[])
 			return &non_transparet;
 	};
 	// FIXME: add more lambdas for data_source if you want to use RenderPass.
-	//        Otherwise, do whatever you like here
+	//		Otherwise, do whatever you like here
 	ShaderUniform std_model = { "model", matrix_binder, std_model_data };
 	ShaderUniform floor_model = { "model", matrix_binder, floor_model_data };
 	ShaderUniform skeletal_model = {"model", matrix_binder, skeletal_model_data};
@@ -174,7 +184,7 @@ int main(int argc, char* argv[])
 	ShaderUniform std_light = { "light_position", vector_binder, std_light_data };
 	ShaderUniform object_alpha = { "alpha", float_binder, alpha_data };
 	// FIXME: define more ShaderUniforms for RenderPass if you want to use it.
-	//        Otherwise, do whatever you like here
+	//		Otherwise, do whatever you like here
 
 	std::vector<glm::vec2>& uv_coordinates = mesh.uv_coordinates;
 	RenderDataInput object_pass_input;
@@ -195,19 +205,19 @@ int main(int argc, char* argv[])
 			  std_camera, object_alpha },
 			{ "fragment_color" }
 			);
-/*
-    RenderDataInput skeletal_pass_input;
-    skeletal_pass_input.assign(0, "vertex_position", skel_ver.data(), skel_ver.size(), 4, GL_FLOAT);
-    skeletal_pass_input.assign_index(skel_lines.data(), skel_lines.size(), 2);
-    RenderPass skeletal_pass(-1,
-                             skeletal_pass_input,
-                             { skeletal_vertex_shader, nullptr, skeletal_fragment_shader},
-                             {skeletal_model, std_view, std_proj},
-                             {"fragment_color"}
+
+	RenderDataInput skeletal_pass_input;
+	skeletal_pass_input.assign(0, "vertex_position", skeleton_v.data(), skeleton_v.size(), 4, GL_FLOAT);
+	skeletal_pass_input.assign_index(skeleton_l.data(), skeleton_l.size(), 2);
+	RenderPass skeletal_pass(-1,
+							 skeletal_pass_input,
+							 { skeletal_vertex_shader, nullptr, skeletal_fragment_shader},
+							 {skeletal_model, std_view, std_proj},
+							 {"fragment_color"}
 	);
-*/
+
 	// FIXME: Create the RenderPass objects for bones here.
-	//        Otherwise do whatever you like.
+	//		Otherwise do whatever you like.
 
 	RenderDataInput floor_pass_input;
 	floor_pass_input.assign(0, "vertex_position", floor_vertices.data(), floor_vertices.size(), 4, GL_FLOAT);
@@ -249,19 +259,16 @@ int main(int argc, char* argv[])
 #else
 		draw_cylinder = true;
 #endif
-		// FIXME: Draw bones first.
-		// Then draw floor.
-		if (draw_floor) {
-			floor_pass.setup();
-			// Draw our triangles.
-			CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, floor_faces.size() * 3, GL_UNSIGNED_INT, 0));
+		if (draw_skeleton) {
+			skeletal_pass.setup();
+			CHECK_GL_ERROR(glDrawElements(GL_LINES, skeleton_l.size() * 2, GL_UNSIGNED_INT, 0));
 		}
 		if (draw_object) {
 			if (gui.isPoseDirty()) {
 				mesh.updateAnimation();
 				object_pass.updateVBO(0,
-						      mesh.animated_vertices.data(),
-						      mesh.animated_vertices.size());
+						mesh.animated_vertices.data(),
+						mesh.animated_vertices.size());
 #if 0
 				// For debugging if you need it.
 				for (int i = 0; i < 4; i++) {
