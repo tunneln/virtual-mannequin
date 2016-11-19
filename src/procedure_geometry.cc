@@ -20,13 +20,13 @@ void create_lattice_lines(std::vector<glm::vec4>& vertices, std::vector<glm::uve
 	size_t n = vertices.size();
 	float step = 1.0f / (float)branch;
 
-	for (size_t i = 0; i < branch; i++) {
-		for (size_t j = 0; j < branch; j++) {
-			vertices.push_back(glm::vec4(j * step - 0.5f, i * step, 0.0f, 1));
+	for (size_t i = 0; i <= branch; i++) {
+		for (size_t j = 0; j <= branch; j++) {
+			vertices.push_back(glm::vec4(0.0f, i * step, j * step, 1));
 
-			size_t adj = n + j + i * branch;
-			if (i < branch - 1) lines.push_back(glm::uvec2(adj, adj + branch));
-			if (j < branch - 1) lines.push_back(glm::uvec2(adj, adj + 1));
+			size_t adj = n + j + i * (branch + 1);
+			if (i < branch) lines.push_back(glm::uvec2(adj, adj + branch));
+			if (j < branch) lines.push_back(glm::uvec2(adj, adj + 1));
 		}
 	}
 }
@@ -35,7 +35,7 @@ void create_lattice_cylinders(std::vector<glm::vec4>& vertices, std::vector<glm:
 		std::vector<glm::uvec3>& faces, size_t branch)
 {
 	size_t n = vertices.size();
-	float step = 1.0f / (float)branch;
+	float step = 1.0f / (float)(branch - 1);
 
 	for (size_t i = 0; i < branch - 1; i++) {
 		for (size_t j = 0; j < branch - 1; j++) {
@@ -51,7 +51,7 @@ void create_lattice_cylinders(std::vector<glm::vec4>& vertices, std::vector<glm:
 
 	for (size_t i = 0; i < branch; i++) {
 		for (size_t j = 0; j < branch; j++) {
-			vertices.push_back(glm::vec4(j * step - 0.5f, i * step, 0.0f, 1));
+			vertices.push_back(glm::vec4(0.0f, i * step, j * step, 1));
 			norm.push_back(glm::vec4(-1.0f, 0.0f, 0.0f, 0.0f));
 		}
 	}

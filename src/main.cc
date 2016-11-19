@@ -50,6 +50,18 @@ const char* skeletal_fragment_shader =
 #include "shaders/skeletal.frag"
 ;
 
+const char* bone_vertex_shader =
+#include "shaders/bone.vert"
+;
+
+const char* bone_geometry_shader =
+#include "shaders/bone.geom"
+;
+
+const char* bone_frag_shader =
+#include "shaders/bone.frag"
+;
+
 void ErrorCallback(int error, const char* description) {
 	std::cerr << "GLFW Error: " << description << "\n";
 }
@@ -95,6 +107,10 @@ int main(int argc, char* argv[])
 
 	std::vector<glm::vec4> skeleton_v;
 	std::vector<glm::uvec2> skeleton_l;
+	std::vector<glm::vec4> form_v;
+	std::vector<glm::uvec2> form_l;
+
+	create_lattice_lines(form_v, form_l);
 
 	Mesh mesh;
 	mesh.loadpmd(argv[1]);
@@ -104,9 +120,8 @@ int main(int argc, char* argv[])
 	mesh.skeleton->calc_joints(skeleton_v, skeleton_l);
 
 	glm::vec4 mesh_center = glm::vec4(0.0f);
-	for (size_t i = 0; i < mesh.vertices.size(); ++i) {
+	for (size_t i = 0; i < mesh.vertices.size(); ++i)
 		mesh_center += mesh.vertices[i];
-	}
 	mesh_center /= mesh.vertices.size();
 
 	/*
@@ -173,8 +188,24 @@ int main(int argc, char* argv[])
 		else
 			return &non_transparet;
 	};
+	auto radius_data = []() -> const void* {
+		return &kCylinderRadius;
+	};
+
+	auto bone_model_data = [&gui, &mesh]() -> const void* {
+		static glm::mat4 current_mat(1.0f);
+		static const glm::mat4 id(1.0f);
+		if(gui.getCurrentBone() < 0)
+			return &id;
+		Bone* bone = mesh.skeleton->get_at(gui.getCurrentBone());
+		current_mat = bone->transform() * glm::scale(glm::vec3(1, 1, bone->get_length()));
+		return &current_mat;
+	};
+
 	// FIXME: add more lambdas for data_source if you want to use RenderPass.
 	//		Otherwise, do whatever you like here
+	ShaderUniform cylinder_radius = {"radius", float_binder, radius_data};
+	ShaderUniform bone_model = {"model", matrix_binder, bone_model_data};
 	ShaderUniform std_model = { "model", matrix_binder, std_model_data };
 	ShaderUniform floor_model = { "model", matrix_binder, floor_model_data };
 	ShaderUniform skeletal_model = {"model", matrix_binder, skeletal_model_data};
@@ -183,6 +214,8 @@ int main(int argc, char* argv[])
 	ShaderUniform std_proj = { "projection", matrix_binder, std_proj_data };
 	ShaderUniform std_light = { "light_position", vector_binder, std_light_data };
 	ShaderUniform object_alpha = { "alpha", float_binder, alpha_data };
+
+
 	// FIXME: define more ShaderUniforms for RenderPass if you want to use it.
 	//		Otherwise, do whatever you like here
 
@@ -216,9 +249,6 @@ int main(int argc, char* argv[])
 							 {"fragment_color"}
 	);
 
-	// FIXME: Create the RenderPass objects for bones here.
-	//		Otherwise do whatever you like.
-
 	RenderDataInput floor_pass_input;
 	floor_pass_input.assign(0, "vertex_position", floor_vertices.data(), floor_vertices.size(), 4, GL_FLOAT);
 	floor_pass_input.assign_index(floor_faces.data(), floor_faces.size(), 3);
@@ -228,6 +258,16 @@ int main(int argc, char* argv[])
 			{ floor_model, std_view, std_proj, std_light },
 			{ "fragment_color" }
 			);
+
+	RenderDataInput cylinder_pass_input;
+	cylinder_pass_input.assign(0, "vertex_position", form_v.data(), form_v.size(), 4, GL_FLOAT);
+	cylinder_pass_input.assign_index(form_l.data(), form_l.size(), 2);
+	RenderPass cylinder_pass(-1,
+			cylinder_pass_input,
+			{ bone_vertex_shader, nullptr, bone_frag_shader },
+			{ bone_model, std_view, std_proj, cylinder_radius },
+			{ "fragment_color" }
+	);
 	float aspect = 0.0f;
 	std::cout << "center = " << mesh.getCenter() << "\n";
 
@@ -261,7 +301,18 @@ int main(int argc, char* argv[])
 #endif
 		if (draw_skeleton) {
 			skeletal_pass.setup();
-			CHECK_GL_ERROR(glDrawElements(GL_LINES, skeleton_l.size() * 2, GL_UNSIGNED_INT, 0));
+			CHECK_GL_ERROR(glDrawElements(GL_LINES, skeleton_l.size() * 2,
+					GL_UNSIGNED_INT, 0));
+		}
+		if (draw_cylinder) {
+			cylinder_pass.setup();
+			CHECK_GL_ERROR(glDrawElements(GL_LINES, form_l.size() * 2,
+					GL_UNSIGNED_INT, 0));
+		}
+		if (draw_floor) {
+			floor_pass.setup();
+			CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, floor_faces.size() * 3,
+					GL_UNSIGNED_INT, 0));
 		}
 		if (draw_object) {
 			if (gui.isPoseDirty()) {

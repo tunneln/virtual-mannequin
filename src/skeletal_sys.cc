@@ -22,9 +22,40 @@ Skeleton::Skeleton(const std::vector<glm::vec3>& offset, const std::vector<int>&
 	joints.push_back(new Joint(glm::vec3(0.0f, 0.0f, 0.0f), -1));
 
 	root = new Bone(joints[joints.size() - 1], joints[r_n], 0, nullptr);
+	bone_vector.push_back(root);
+	bone_map.insert({0, root});
 	std::vector<Bone*> head_bones = init_bone(joints, root, r_n);
 	root->add_leaves(head_bones);
-	bone_map.insert({0, root});
+
+}
+
+Skeleton::~Skeleton()
+{
+	if (root != nullptr) delete root;
+}
+
+Bone* Skeleton::get_at(size_t i)
+{
+	return (i < bone_vector.size()) ? bone_vector[i] : nullptr;
+}
+
+Bone* Skeleton::bone_inter(glm::vec3 b, glm::vec3 dir, float y)
+{
+	float lim = std::numeric_limits<float>::infinity();
+	Bone* ret;
+
+	for (auto it = bone_vector.begin(); it != bone_vector.end(); it++) {
+		float x = 0;
+		Bone* bone = *it;
+		if (bone->intersect(b, dir, y, x)) {
+			if (x < lim) {
+				lim = x;
+				ret = bone;
+			}
+		}
+	}
+
+	return ret;
 }
 
 std::vector<Bone*> Skeleton::init_bone(std::vector<Joint*> joints, Bone* rootBone, int r_n)
@@ -38,8 +69,9 @@ std::vector<Bone*> Skeleton::init_bone(std::vector<Joint*> joints, Bone* rootBon
 	for (size_t i = 0; i < joints.size(); i++) {
 		next = joints[i];
 		if (r_n == next->pid) {
-			Bone* curr_bone = new Bone(curr, next, bid++, rootBone);
-			bone_map.insert({bid, curr_bone});
+			Bone* curr_bone = new Bone(curr, next, bid, rootBone);
+			bone_vector.push_back(curr_bone);
+			bone_map.insert({0, root});
 			curr_bone->add_leaves(init_bone(joints, curr_bone, i));
 
 			result.push_back(curr_bone);
@@ -59,11 +91,6 @@ void Skeleton::move_joints(std::vector<glm::vec4>& points)
 	points.clear();
 	std::vector<glm::uvec2> lines;
 	calc_joints(points, lines);
-}
-
-Skeleton::~Skeleton()
-{
-	if (root != nullptr) delete root;
 }
 
 //#####################################################################//
@@ -160,6 +187,25 @@ glm::vec4 Bone::first_w()
 glm::vec4 Bone::last_w()
 {
 	return glm::vec4(glm::vec3(first_w()) + last_joint->offset, 1.0f);
+}
+
+bool Bone::intersect(glm::vec3 b, glm::vec3 dir, float y, float& x)
+{
+	glm::vec3 bone_first = glm::vec3(first_w());
+	glm::vec3 bone_dir = last_joint->offset;
+	glm::vec3 c = bone_first - b;
+
+	float denom = glm::dot(dir, dir) * glm::dot(bone_dir, bone_dir) - glm::dot(dir, bone_dir) * glm::dot(dir, bone_dir);
+	float x0 = (glm::dot(bone_dir, c) * glm::dot(dir, dir) - glm::dot(dir, bone_dir) * glm::dot(bone_dir, c)) / denom;
+	float x1 = (glm::dot(dir, bone_dir) * glm::dot(bone_dir, c) - glm::dot(bone_dir, c) * glm::dot(dir, dir)) / denom;
+
+	float mag = glm::length(b + dir * x0 - bone_first - bone_dir * x0);
+	if (x0 >= 0 && x1 >= 0 && x1 <= 1 && mag < y) {
+		x = x0;
+		return true;
+	}
+
+	return false;
 }
 
 void Bone::_calc_joints(std::vector<glm::vec4>& points, std::vector<glm::uvec2>& lines,

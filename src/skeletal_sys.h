@@ -12,6 +12,7 @@ class Skeleton {
 private:
 	Bone* root;
 	std::unordered_map<int, Bone*> bone_map;
+	std::vector<Bone*> bone_vector;
 
 public:
 	Skeleton();
@@ -19,9 +20,13 @@ public:
 	Skeleton(const std::vector<glm::vec3>& offset, const std::vector<int>& parent);
 	~Skeleton();
 
+	Bone* get_at(size_t i);
+	size_t get_size() { return bone_vector.size(); }
+	Bone* bone_inter(glm::vec3 b, glm::vec3 dir, float y);
 	std::vector<Bone*> init_bone(std::vector<Joint*> joints, Bone* rootBone, int r_n);
 	void calc_joints(std::vector<glm::vec4>& points, std::vector<glm::uvec2>& lines);
 	void move_joints(std::vector<glm::vec4>& points);
+
 
 };
 
@@ -29,7 +34,7 @@ public:
 class Bone {
 private:
 	int id;
-	double length;
+	float length;
 
 	Bone* root;
 	Joint *first_joint, *last_joint;
@@ -47,10 +52,12 @@ public:
 
 	void add_leaf(Bone* leaf);
 	void add_leaves(std::vector<Bone*> leaves);
-
 	glm::mat4 translate();
 	glm::mat4 transform();
 	glm::mat4 rotate();
+
+	bool intersect(glm::vec3 b, glm::vec3 dir, float y, float& x);
+	float get_length() { return this->length; }
 
 	void _calc_joints(std::vector<glm::vec4>& points, std::vector<glm::uvec2>& lines,
 			glm::mat4 root_trans);
