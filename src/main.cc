@@ -54,10 +54,6 @@ const char* bone_vertex_shader =
 #include "shaders/bone.vert"
 ;
 
-const char* bone_geometry_shader =
-#include "shaders/bone.geom"
-;
-
 const char* bone_frag_shader =
 #include "shaders/bone.frag"
 ;
@@ -114,10 +110,9 @@ int main(int argc, char* argv[])
 
 	Mesh mesh;
 	mesh.loadpmd(argv[1]);
+	mesh.skeleton->calc_joints(skeleton_v, skeleton_l);
 	std::cout << "Loaded object  with  " << mesh.vertices.size()
 		<< " vertices and " << mesh.faces.size() << " faces.\n";
-
-	mesh.skeleton->calc_joints(skeleton_v, skeleton_l);
 
 	glm::vec4 mesh_center = glm::vec4(0.0f);
 	for (size_t i = 0; i < mesh.vertices.size(); ++i)
@@ -244,8 +239,8 @@ int main(int argc, char* argv[])
 	skeletal_pass_input.assign_index(skeleton_l.data(), skeleton_l.size(), 2);
 	RenderPass skeletal_pass(-1,
 							 skeletal_pass_input,
-							 { skeletal_vertex_shader, nullptr, skeletal_fragment_shader},
-							 {skeletal_model, std_view, std_proj},
+							 { skeletal_vertex_shader, nullptr, skeletal_fragment_shader },
+							 { skeletal_model, std_view, std_proj },
 							 {"fragment_color"}
 	);
 
@@ -320,6 +315,10 @@ int main(int argc, char* argv[])
 				object_pass.updateVBO(0,
 						mesh.animated_vertices.data(),
 						mesh.animated_vertices.size());
+				mesh.skeleton->move_joints(skeleton_v);
+				skeletal_pass.updateVBO(0,
+						skeleton_v.data(),
+						skeleton_v.size());
 #if 0
 				// For debugging if you need it.
 				for (int i = 0; i < 4; i++) {

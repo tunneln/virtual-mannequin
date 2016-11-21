@@ -49,8 +49,9 @@ void Mesh::loadpmd(const std::string& fn)
 		offsets.push_back(offset);
 		pids.push_back(pid);
 	}
-
-	skeleton = new Skeleton(offsets, pids);
+	std::vector<SparseTuple> weights;
+	mr.getJointWeights(weights);
+	skeleton = new Skeleton(offsets, pids, weights);
 }
 
 void Mesh::updateAnimation()

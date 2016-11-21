@@ -1,15 +1,19 @@
 #include <iostream>
 #include <glm/gtx/transform.hpp>
+#include <unordered_map>
+#include "config.h"
 #include <queue>
 #include <stack>
 #include "skeletal_sys.h"
+#include <mmdadapter.h>
 
 Skeleton::Skeleton() : root(nullptr) {  }
 
 Skeleton::Skeleton(Bone* root) : root(root) {  }
 
-Skeleton::Skeleton(const std::vector<glm::vec3>& offset, const std::vector<int>& parent)
+Skeleton::Skeleton(const std::vector<glm::vec3>& offset, const std::vector<int>& parent, const std::vector<SparseTuple>& weights)
 {
+	this->weights = weights;
 	std::vector<Joint*> joints;
 	root = nullptr;
 	size_t r_n = 0;
@@ -21,7 +25,7 @@ Skeleton::Skeleton(const std::vector<glm::vec3>& offset, const std::vector<int>&
 	}
 	joints.push_back(new Joint(glm::vec3(0.0f, 0.0f, 0.0f), -1));
 
-	root = new Bone(joints[joints.size() - 1], joints[r_n], 0, nullptr);
+	root = new Bone(joints[joints.size() - 1], joints[r_n], nullptr);
 	bone_vector.push_back(root);
 	bone_map.insert({0, root});
 	std::vector<Bone*> head_bones = init_bone(joints, root, r_n);
@@ -42,13 +46,13 @@ Bone* Skeleton::get_at(size_t i)
 Bone* Skeleton::bone_inter(glm::vec3 b, glm::vec3 dir, float y)
 {
 	float lim = std::numeric_limits<float>::infinity();
-	Bone* ret;
+	Bone* ret = NULL;
 
 	for (auto it = bone_vector.begin(); it != bone_vector.end(); it++) {
 		float x = 0;
 		Bone* bone = *it;
 		if (bone->intersect(b, dir, y, x)) {
-			if (x < lim) {
+			if (x < lim || ret == NULL) {
 				lim = x;
 				ret = bone;
 			}
@@ -58,27 +62,26 @@ Bone* Skeleton::bone_inter(glm::vec3 b, glm::vec3 dir, float y)
 	return ret;
 }
 
-std::vector<Bone*> Skeleton::init_bone(std::vector<Joint*> joints, Bone* rootBone, int r_n)
+std::vector<Bone*> Skeleton::init_bone(std::vector<Joint*> joints, Bone* root_bone, int r_n)
 {
 	Joint* curr = joints[r_n];
 	Joint* next = nullptr;
 
-	std::vector<Bone*> result;
+	std::vector<Bone*> ret;
 
-	int bid = 1;
 	for (size_t i = 0; i < joints.size(); i++) {
 		next = joints[i];
 		if (r_n == next->pid) {
-			Bone* curr_bone = new Bone(curr, next, bid, rootBone);
+			Bone* curr_bone = new Bone(curr, next, root_bone);
 			bone_vector.push_back(curr_bone);
-			bone_map.insert({0, root});
+			bone_map.insert({curr_bone->getId(), curr_bone});
 			curr_bone->add_leaves(init_bone(joints, curr_bone, i));
 
-			result.push_back(curr_bone);
+			ret.push_back(curr_bone);
 		}
 	}
 
-	return result;
+	return ret;
 }
 
 void Skeleton::calc_joints(std::vector<glm::vec4>& points, std::vector<glm::uvec2>& lines)
@@ -95,11 +98,11 @@ void Skeleton::move_joints(std::vector<glm::vec4>& points)
 
 //#####################################################################//
 
-Bone::Bone(Joint* first, Joint* last, int identifier, Bone* root)
-	: first_joint(first), last_joint(last),
-	root(root), rotation(1.0f), transformation(1.0f),
+Bone::Bone(Joint* first, Joint* last, Bone* head)
+	: first_joint(first), last_joint(last), root(head),
+	rotation(1.0f), transformation(1.0f), S(1.0f),
 	length(glm::length(last_joint->offset)),
-	id(identifier)
+	id(bone_id++)
 {
 	update();
 }
@@ -128,18 +131,20 @@ void Bone::update()
 	transformation = glm::translate(glm::vec3(v));
 
 	t = glm::normalize(glm::vec3(glm::transpose(root_r) * glm::vec4(last_joint->offset, 0.0f)));
-	if (std::abs(t.x) <= std::abs(t.y) && std::abs(t.x) <= std::abs(t.z))
-		det = glm::vec3(1.0f, 0.0f, 0.0f);
-	else if (std::abs(t.y) <= std::abs(t.x) && std::abs(t.y) <= std::abs(t.z))
-		det = glm::vec3(0.0f, 1.0f, 0.0f);
+	n = t;
+	if (std::abs(n.x) <= std::abs(n.y) && std::abs(n.x) <= std::abs(n.z))
+		n = glm::vec3(1.0f, 0.0f, 0.0f);
+	else if (std::abs(n.y) <= std::abs(n.x) && std::abs(n.y) <= std::abs(n.z))
+		n = glm::vec3(0.0f, 1.0f, 0.0f);
 	else
-		det = glm::vec3(0.0f, 0.0f, 1.0f);
-	det = glm::normalize(glm::cross(t, det));
-
-	rotation[0] = glm::vec4(det, 0.0f);
-	rotation[1] = glm::vec4(det, 0.0f);
+		n = glm::vec3(0.0f, 0.0f, 1.0f);
+	n = glm::normalize(glm::cross(t, n));
+	b = glm::normalize(glm::cross(t, n));
+	rotation[0] = glm::vec4(b, 0.0f);
+	rotation[1] = glm::vec4(n, 0.0f);
 	rotation[2] = glm::vec4(t, 0.0f);
 	rotation[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+	S = rotation, tS = t, nS = n, bS = b;
 }
 
 void Bone::add_leaf(Bone* leaf)
@@ -165,7 +170,7 @@ glm::mat4 Bone::transform()
 	glm::mat4 ret(1.0f);
 	if (root != nullptr)
 		ret *= root->transform();
-	return ret * transformation * rotation;
+	return ret * transformation * S;
 }
 
 glm::mat4 Bone::rotate()
@@ -173,7 +178,7 @@ glm::mat4 Bone::rotate()
 	glm::mat4 ret(1.0f);
 	if (root != nullptr)
 		ret *= root->rotate();
-	return ret * rotation;
+	return ret * S;
 }
 
 glm::vec4 Bone::first_w()
@@ -189,30 +194,69 @@ glm::vec4 Bone::last_w()
 	return glm::vec4(glm::vec3(first_w()) + last_joint->offset, 1.0f);
 }
 
-bool Bone::intersect(glm::vec3 b, glm::vec3 dir, float y, float& x)
+void Bone::roll(float theta)
 {
-	glm::vec3 bone_first = glm::vec3(first_w());
-	glm::vec3 bone_dir = last_joint->offset;
-	glm::vec3 c = bone_first - b;
+	glm::mat4 roll_m = glm::rotate(theta, tS);
+	nS = glm::normalize(glm::vec3(roll_m * glm::vec4(nS, 0.0f)));
+	bS = glm::normalize(glm::vec3(roll_m * glm::vec4(bS, 0.0f)));
 
-	float denom = glm::dot(dir, dir) * glm::dot(bone_dir, bone_dir) - glm::dot(dir, bone_dir) * glm::dot(dir, bone_dir);
-	float x0 = (glm::dot(bone_dir, c) * glm::dot(dir, dir) - glm::dot(dir, bone_dir) * glm::dot(bone_dir, c)) / denom;
-	float x1 = (glm::dot(dir, bone_dir) * glm::dot(bone_dir, c) - glm::dot(bone_dir, c) * glm::dot(dir, dir)) / denom;
+	S[0] = glm::vec4(bS, 0.0f);
+	S[1] = glm::vec4(nS, 0.0f);
+	S[2] = glm::vec4(tS, 0.0f);
+	S[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+}
 
-	float mag = glm::length(b + dir * x0 - bone_first - bone_dir * x0);
-	if (x0 >= 0 && x1 >= 0 && x1 <= 1 && mag < y) {
-		x = x0;
-		return true;
-	}
+void Bone::rotate(float rotation_speed_, glm::vec3 worldDrag)
+{
+	glm::mat4 rotate_m = glm::rotate(rotation_speed_, worldDrag);
+	tS = glm::normalize(glm::vec3(rotate_m * glm::vec4(tS, 0.0f)));
+	nS = glm::normalize(glm::vec3(rotate_m * glm::vec4(nS, 0.0f)));
+	bS = glm::normalize(glm::vec3(rotate_m * glm::vec4(bS, 0.0f)));
 
-	return false;
+	S[0] = glm::vec4(bS, 0.0f);
+	S[1] = glm::vec4(nS, 0.0f);
+	S[2] = glm::vec4(tS, 0.0f);
+ 	S[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
+}
+
+bool Bone::intersect(glm::vec3 s_b, glm::vec3 dir, float y, float& x)
+{
+	glm::mat4 m = transform();
+	glm::mat4 _m = glm::inverse(m);
+	glm::vec3 m_s = glm::vec3(_m * glm::vec4(s_b, 1.0f));
+	glm::vec3 m_dir = glm::vec3(_m * glm::vec4(dir, 0.0f));
+
+	float a = pow(m_dir.y, 2) + pow(m_dir.x, 2);
+	float b = 2 * m_s.x * m_dir.x + 2 * m_s.y * m_dir.y;
+	float c = pow(m_s.y, 2) + pow(m_s.x, 2) - pow(y, 2);
+	float rad = pow(b, 2) - 4 * a * c;
+
+	if(rad < 0)
+		return false;
+
+	float sqrt_rad = sqrtf(rad);
+	float t0 = (-b + sqrt_rad) / (2 * a),
+		  t1 = (-b - sqrt_rad) / (2 * a);
+	glm::vec3 point_inter0 = (m_s + m_dir * t0);
+	glm::vec3 point_inter1 = (m_s + m_dir * t1);
+
+	bool v0 = (t0 >= 0 && point_inter0.z >= 0 &&
+			point_inter0.z <= length);
+	bool v1 = (t1 >= 0 && point_inter1.z >= 0 &&
+			point_inter1.z <= length);
+
+	if (v0 && v1) x = std::min(t0, t1);
+	else if (v0) x = t0;
+	else if (v1) x = t1;
+
+	return (v0 || v1) ? true : false;
 }
 
 void Bone::_calc_joints(std::vector<glm::vec4>& points, std::vector<glm::uvec2>& lines,
 		glm::mat4 root_trans)
 {
 	glm::vec4 beg = root_trans * transformation * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
-	glm::vec4 end = root_trans * transformation * rotation * glm::vec4(0.0f, 0.0f, length, 1.0f);
+	glm::vec4 end = root_trans * transformation * S * glm::vec4(0.0f, 0.0f, length, 1.0f);
 
 	points.push_back(beg);
 	points.push_back(end);
@@ -220,7 +264,7 @@ void Bone::_calc_joints(std::vector<glm::vec4>& points, std::vector<glm::uvec2>&
 
 	for (auto it = leaves.begin(); it != leaves.end(); it++) {
 		Bone* leaf = *it;
-		leaf->_calc_joints(points, lines, root_trans * transformation * rotation);
+		leaf->_calc_joints(points, lines, root_trans * transformation * S);
 	}
 }
 

@@ -8,6 +8,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/transform.hpp>
 
+/*
 namespace {
 	// Intersect a cylinder with radius 1/2, height 1, with base centered at
 	// (0, 0, 0) and up direction (0, 1, 0).
@@ -18,6 +19,7 @@ namespace {
 		return true;
 	}
 }
+*/
 
 GUI::GUI(GLFWwindow* window)
 	:window_(window)
@@ -61,7 +63,9 @@ void GUI::keyCallback(int key, int scancode, int action, int mods)
 			roll_speed = -roll_speed_;
 		else
 			roll_speed = roll_speed_;
-		// FIXME: actually roll the bone here
+		if (bone_ptr != nullptr)
+			bone_ptr->roll(roll_speed);
+		pose_changed_ = true;
 	} else if (key == GLFW_KEY_C && action != GLFW_RELEASE) {
 		fps_mode_ = !fps_mode_;
 	} else if (key == GLFW_KEY_LEFT_BRACKET && action == GLFW_RELEASE) {
@@ -100,18 +104,34 @@ void GUI::mousePosCallback(double mouse_x, double mouse_y)
 				orientation_ *
 				glm::vec3(mouse_direction.y, -mouse_direction.x, 0.0f)
 				);
-		orientation_ =
-			glm::mat3(glm::rotate(rotation_speed_, axis) * glm::mat4(orientation_));
+		orientation_ = glm::mat3(glm::rotate(rotation_speed_, axis) *
+				glm::mat4(orientation_));
 		tangent_ = glm::column(orientation_, 0);
 		up_ = glm::column(orientation_, 1);
 		look_ = glm::column(orientation_, 2);
 	} else if (drag_bone && current_bone_ != -1) {
-		// FIXME: Handle bone rotation
-		return ;
+		glm::vec3 axis = glm::normalize(glm::cross(look_,
+				glm::vec3(mouse_direction.y, -mouse_direction.x, 0.0f)));
+		bone_ptr->rotate(rotation_speed_, axis);
+		pose_changed_ = true;
 	}
 
-	// FIXME: highlight bones that have been moused over
-	current_bone_ = -1;
+    if (!drag_bone) {
+		glm::vec3 p = glm::unProject(glm::vec3(current_x_, current_y_, 0),
+			view_matrix_ * model_matrix_, projection_matrix_, viewport);
+		glm::vec3 q = glm::unProject(glm::vec3(current_x_, current_y_, 1),
+				view_matrix_ * model_matrix_, projection_matrix_, viewport);
+		glm::vec3 dir = glm::normalize(q - p);
+
+        Bone* bone = mesh_->skeleton->bone_inter(eye_, dir, kCylinderRadius);
+        if (bone != nullptr) {
+            current_bone_ = bone->getId();
+            bone_ptr = bone;
+        } else {
+            current_bone_ = -1;
+            bone_ptr = nullptr;
+        }
+    }
 }
 
 void GUI::mouseButtonCallback(int button, int action, int mods)

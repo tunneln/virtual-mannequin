@@ -4,12 +4,12 @@
 
 void create_floor(std::vector<glm::vec4>& floor_vertices, std::vector<glm::uvec3>& floor_faces)
 {
+	floor_faces.push_back(glm::uvec3(0, 1, 2));
+	floor_faces.push_back(glm::uvec3(2, 3, 0));
 	floor_vertices.push_back(glm::vec4(kFloorXMin, kFloorY, kFloorZMax, 1.0f));
 	floor_vertices.push_back(glm::vec4(kFloorXMax, kFloorY, kFloorZMax, 1.0f));
 	floor_vertices.push_back(glm::vec4(kFloorXMax, kFloorY, kFloorZMin, 1.0f));
 	floor_vertices.push_back(glm::vec4(kFloorXMin, kFloorY, kFloorZMin, 1.0f));
-	floor_faces.push_back(glm::uvec3(0, 1, 2));
-	floor_faces.push_back(glm::uvec3(2, 3, 0));
 }
 
 void create_bone_mesh(Skeleton* skeleton) {}
@@ -25,7 +25,7 @@ void create_lattice_lines(std::vector<glm::vec4>& vertices, std::vector<glm::uve
 			vertices.push_back(glm::vec4(0.0f, i * step, j * step, 1));
 
 			size_t adj = n + j + i * (branch + 1);
-			if (i < branch) lines.push_back(glm::uvec2(adj, adj + branch));
+			if (i < branch) lines.push_back(glm::uvec2(adj, adj + branch + 1));
 			if (j < branch) lines.push_back(glm::uvec2(adj, adj + 1));
 		}
 	}
